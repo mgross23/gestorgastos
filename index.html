@@ -556,7 +556,7 @@ window.addTransaction = async () => {
   setSyncing('syncing');
   try {
     const month=date.slice(0,7);
-    const tx={date,amount,catId,desc,type:currentType};
+    const tx={date,amount,catId,desc,type:currentType,createdAt:Date.now()};
     await addDoc(txCol(month),tx);
     // DO NOT manually update D.transactions — onSnapshot listener handles it automatically
     // This prevents the duplicate bug
@@ -636,7 +636,7 @@ function txRow(tx) {
 }
 
 function buildTxHTML(txs) {
-  const sorted=[...txs].sort((a,b)=>b.date.localeCompare(a.date)||String(b.id).localeCompare(String(a.id)));
+  const sorted=[...txs].sort((a,b)=>b.date.localeCompare(a.date)||(b.createdAt||0)-(a.createdAt||0));
   const groups={};
   sorted.forEach(tx=>{ if(!groups[tx.date])groups[tx.date]=[]; groups[tx.date].push(tx); });
   const today=localToday();
@@ -652,7 +652,7 @@ function buildTxHTML(txs) {
 
 function renderRecent(txs) {
   const el=document.getElementById('recent-list');
-  const r=[...txs].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8);
+  const r=[...txs].sort((a,b)=>b.date.localeCompare(a.date)||(b.createdAt||0)-(a.createdAt||0)).slice(0,8);
   el.innerHTML=r.length?buildTxHTML(r):'<div class="empty"><span class="empty-icon">💸</span>Sin movimientos. ¡Registra tu primer gasto!</div>';
 }
 
@@ -662,7 +662,7 @@ function renderHistory() {
   const fc=document.getElementById('filter-cat').value;
   if(ft) txs=txs.filter(t=>t.type===ft);
   if(fc) txs=txs.filter(t=>t.catId===fc);
-  txs=[...txs].sort((a,b)=>b.date.localeCompare(a.date));
+  txs=[...txs].sort((a,b)=>b.date.localeCompare(a.date)||(b.createdAt||0)-(a.createdAt||0));
   document.getElementById('hist-subtitle').textContent=txs.length+' movimientos';
   document.getElementById('history-list').innerHTML=txs.length?buildTxHTML(txs):'<div class="empty"><span class="empty-icon">🔍</span>Sin resultados</div>';
 }
@@ -899,6 +899,8 @@ window.saveBudgetModal=async()=>{
   const id=document.getElementById('modal-cat-key').value;
   const val=parseFloat(document.getElementById('modal-budget-val').value)||0;
   if(val>0) D.budgets[id]=val; else delete D.budgets[id];
+  // Remove existing alerts for this category this month so they re-evaluate with new budget
+  D.alerts=D.alerts.filter(a=>!(a.catId===id && a.month===currentMonth));
   await saveConfig(); closeBudgetModal(); renderSettings(); renderAll();
   toast('Presupuesto guardado','ok');
 };
