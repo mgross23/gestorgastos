@@ -1,7 +1,9 @@
 {
   "name": "Finanzas Personales",
   "short_name": "Finanzas",
+  "description": "Gestor de gastos e ingresos personales",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0a0a12",
   "theme_color": "#0a0a12",
   "start_url": "./index.html",

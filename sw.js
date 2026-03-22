@@ -1,29 +1,49 @@
 const CACHE = 'finanzas-v3';
-const ASSETS = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+const ASSETS = [
+  './index.html',
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png'
+];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+  e.waitUntil(
+    caches.open(CACHE).then(c => c.addAll(ASSETS)).catch(() => {})
+  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys =>
-    Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-  ));
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    )
+  );
   self.clients.claim();
 });
 
 self.addEventListener('fetch', e => {
-  if (e.request.url.includes('firestore') ||
-      e.request.url.includes('firebase') ||
-      e.request.url.includes('googleapis')) {
-    e.respondWith(fetch(e.request).catch(() => new Response('', {status: 503})));
+  // Always go network-first for Firebase/Google requests
+  if (
+    e.request.url.includes('firestore') ||
+    e.request.url.includes('firebase') ||
+    e.request.url.includes('googleapis') ||
+    e.request.url.includes('gstatic') ||
+    e.request.url.includes('anthropic')
+  ) {
+    e.respondWith(
+      fetch(e.request).catch(() => new Response('', { status: 503 }))
+    );
     return;
   }
+
+  // Cache-first for app shell assets
   e.respondWith(
     caches.match(e.request).then(cached => {
       const network = fetch(e.request).then(res => {
-        if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+        if (res.ok) {
+          caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+        }
         return res;
       }).catch(() => {});
       return cached || network;
